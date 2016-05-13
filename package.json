@@ -6,6 +6,9 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "bin": {
+    "craig": "./bin/craig"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/tmlbl/craig.git"
@@ -20,6 +23,7 @@
   },
   "homepage": "https://github.com/tmlbl/craig#readme",
   "dependencies": {
+    "async": "^2.0.0-rc.4",
     "commander": "^2.9.0",
     "gulp-util": "^3.0.7",
     "htmlparser2": "^3.9.0",

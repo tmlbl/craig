@@ -1,0 +1,161 @@
+#!/usr/bin/env node
+
+var request = require("request"),
+    htmlparser = require("htmlparser2"),
+    fs = require("fs"),
+    path = require("path"),
+    async = require("async"),
+    program = require("commander"),
+    gutil = require("gulp-util");
+
+program
+  .option("-r --region [region]", "Region as in X.craigslist.org", "seattle")
+  .option("-c --category [category]", "Narrow query to a category", "sss")
+  .option("-q --query [query]", "Search query to process", "couch")
+  .option("-p --parallel [parallel]", "Concurrent requests to make", 1)
+  // .option("-p --posts", "Whether to download posts")
+  // .option("-i --images", "Whether to download the images")
+  // .option("-D --debug", "Debug logging")
+  .parse(process.argv);
+
+function extractPostLinks(content) {
+  var postlinks = [];
+  var parser = new htmlparser.Parser({
+    onopentag: function (name, attribs) {
+      if (attribs.class == "hdrlnk") {
+        postlinks.push(attribs.href);
+      }
+    },
+    ontext: function (text) {
+
+    },
+    onclosetag: function (tagname) {
+
+    }
+  }, {decodeEntities: true});
+
+  parser.write(content);
+  parser.end();
+  return postlinks;
+}
+
+function baseUrl(region) {
+  return "http://" + region + ".craigslist.org";
+}
+
+function makeUrl(region, category, query, pagenum) {
+  return baseUrl(region) + "/search/" + category +
+      "?query=" + query + (pagenum == 0 ? "" : "&s=" + pagenum * 100);
+}
+
+// Recursively get page links
+function getPostLinks(region, category, query, cb) {
+  gutil.log("Getting search results...")
+  var links = [];
+  var count = 20;
+  var pagenum = 0;
+
+  async.whilst(
+    function () { return count != 0 },
+    function (callback) {
+      var url = makeUrl(region, category, query, pagenum);
+      // gutil.log(url);
+      request.get(url, function (err, res, body) {
+        if (err) {
+          return cb(err);
+        }
+        var pageLinks = extractPostLinks(body);
+        count = pageLinks.length;
+        pageLinks.forEach(function (l) { links.push(baseUrl(region) + l) });
+        pagenum++;
+        callback(null, count);
+      });
+    },
+    function (err, n) {
+        cb(err, links);
+    }
+  );
+}
+
+function Post() {
+  return {
+    timestamp: new Date(),
+    content: ""
+  }
+}
+
+function extractPosts(content) {
+  var in_post = false,
+      lines = [],
+      post = Post(),
+      posts = [];
+
+  var parser = new htmlparser.Parser({
+    onopentag: function (name, attribs) {
+      if (attribs.id == "postingbody") {
+        in_post = true;
+      }
+    },
+    ontext: function (text) {
+      if (in_post) {
+        lines.push(text);
+      }
+    },
+    onclosetag: function (tagname) {
+      if (in_post && tagname == "section") {
+        in_post = false;
+        post.content = lines.join();
+        posts.push(post);
+        post = Post();
+      }
+    }
+  }, {decodeEntities: true});
+
+  parser.write(content);
+  parser.end();
+  return posts;
+}
+
+function getPosts(links, postsCallback) {
+  var sets = [];
+  var set = [];
+  var posts = [];
+  var funcs = links.forEach(function (l) {
+    if (set.length <= program.parallel) {
+      set.push(function (cb) {
+        // gutil.log("POST", l);
+        request.get(l, function (err, res, body) {
+          if (err) {
+            return cb(err);
+          }
+          extractPosts(body).forEach(function (p) { posts.push(p) });
+          cb();
+        })
+      })
+    } else {
+      sets.push(set);
+      set = [];
+    }
+  });
+
+  gutil.log("Scraping post contents...");
+  async.eachSeries(sets, function (set, setCallback) {
+    gutil.log("Doing set of", program.parallel);
+    async.parallel(set, setCallback);
+  }, function () {
+    postsCallback(posts);
+  });
+
+}
+
+function search(region, category, query) {
+  gutil.log("Searching for", query, "in", region);
+  getPostLinks(region, category, query, function (err, links) {
+    gutil.log("Got", links.length, "results");
+    getPosts(links, function (posts) {
+      // console.log(posts);
+    });
+  });
+}
+
+search(program.region, program.category, program.query);

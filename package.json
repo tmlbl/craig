@@ -1,0 +1,30 @@
+{
+  "name": "craig",
+  "version": "0.0.1",
+  "description": "Craigslist crawler for personal use",
+  "main": "bin/craig",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tmlbl/craig.git"
+  },
+  "keywords": [
+    "craigslist"
+  ],
+  "author": "Tim Lebel",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/tmlbl/craig/issues"
+  },
+  "homepage": "https://github.com/tmlbl/craig#readme",
+  "dependencies": {
+    "commander": "^2.9.0",
+    "gulp-util": "^3.0.7",
+    "htmlparser2": "^3.9.0",
+    "mailgun-js": "^0.7.11",
+    "request": "^2.72.0",
+    "tingodb": "^0.4.2"
+  }
+}

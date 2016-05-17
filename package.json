@@ -28,6 +28,7 @@
     "gulp-util": "^3.0.7",
     "htmlparser2": "^3.9.0",
     "mailgun-js": "^0.7.11",
+    "mongodb": "^2.1.18",
     "request": "^2.72.0",
     "tingodb": "^0.4.2"
   }
